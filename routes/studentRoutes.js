@@ -64,5 +64,16 @@ router.delete("/students/:id", (req, res) => {
         }
     });
 });
+// LẤY DANH SÁCH PHÒNG
+router.get("/rooms", (req, res) => {
+    console.log("API ROOMS OK");
+  db.query("SELECT * FROM rooms", (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json(err);
+    }
+    return res.json(result);
+  });
+});
 
 module.exports = router;
