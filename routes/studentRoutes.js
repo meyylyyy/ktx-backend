@@ -75,5 +75,45 @@ router.get("/rooms", (req, res) => {
     return res.json(result);
   });
 });
+router.post("/rooms", (req, res) => {
+  const { ma_phong, ten_phong, ma_khu, loai_phong, so_nguoi_hien_tai, so_nguoi_toi_da } = req.body;
+
+  const sql = `
+    INSERT INTO rooms 
+    (ma_phong, ten_phong, ma_khu, loai_phong, so_nguoi_hien_tai, so_nguoi_toi_da)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `;
+
+  db.query(sql, [ma_phong, ten_phong, ma_khu, loai_phong, so_nguoi_hien_tai, so_nguoi_toi_da], 
+    (err, result) => {
+      if (err) return res.status(500).json(err);
+      res.json({ message: "Thêm thành công" });
+  });
+});
+router.put("/rooms/:id", (req, res) => {
+  const { id } = req.params;
+  const { ma_phong, ten_phong, ma_khu, loai_phong, so_nguoi_hien_tai, so_nguoi_toi_da } = req.body;
+
+  const sql = `
+    UPDATE rooms SET 
+    ma_phong=?, ten_phong=?, ma_khu=?, loai_phong=?, 
+    so_nguoi_hien_tai=?, so_nguoi_toi_da=?
+    WHERE id=?
+  `;
+
+  db.query(sql, [ma_phong, ten_phong, ma_khu, loai_phong, so_nguoi_hien_tai, so_nguoi_toi_da, id], 
+    (err, result) => {
+      if (err) return res.status(500).json(err);
+      res.json({ message: "Sửa thành công" });
+  });
+});
+router.delete("/rooms/:id", (req, res) => {
+  const { id } = req.params;
+
+  db.query("DELETE FROM rooms WHERE id=?", [id], (err, result) => {
+    if (err) return res.status(500).json(err);
+    res.json({ message: "Xóa thành công" });
+  });
+});
 
 module.exports = router;
