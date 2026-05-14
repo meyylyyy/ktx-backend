@@ -1,139 +1,449 @@
 const express = require("express");
+
+console.log("STUDENT ROUTES LOADED");
+
 const router = express.Router();
+
 const db = require("../config/db");
 
-// --- PHẦN LOGIN ---
+// ================= LOGIN =================
+
 router.post("/login", (req, res) => {
+
     const { username, password } = req.body;
-    const sql = "SELECT * FROM users WHERE username = ? AND password = ?";
-    
+
+    const sql =
+        "SELECT * FROM users WHERE username = ? AND password = ?";
+
     db.query(sql, [username, password], (err, result) => {
+
         if (err) {
-            return res.status(500).json({ success: false, error: err });
+            return res.status(500).json(err);
         }
+
         if (result.length > 0) {
-            res.json({ success: true, message: "Login success", user: result[0] });
+
+            res.json({
+                success: true,
+                user: result[0]
+            });
+
         } else {
-            res.status(401).json({ success: false, message: "Invalid credentials" });
+
+            res.status(401).json({
+                success: false,
+                message: "Sai tài khoản"
+            });
         }
     });
 });
 
-// --- QUẢN LÝ SINH VIÊN ---
+// ================= STUDENTS =================
+
+// HIỂN THỊ SINH VIÊN
+
 router.get("/students", (req, res) => {
-    db.query("SELECT * FROM students", (err, result) => {
-        if (err) {
-            res.status(500).json(err);
-        } else {
-            res.json(result);
-        }
-    });
-});
 
-router.post("/students", (req, res) => {
-    const { name, student_code, gender, room_id } = req.body;
-    const sql = "INSERT INTO students (name, student_code, gender, room_id) VALUES (?, ?, ?, ?)";
-    db.query(sql, [name, student_code, gender, room_id], (err, result) => {
-        if (err) {
-            res.status(500).json(err);
-        } else {
-            res.json({ message: "Success" });
-        }
-    });
-});
+    const sql = `
+        SELECT
+            id,
+            student_code,
+            name,
+            cmnd,
+            sdt,
+            ngay_sinh,
+            que_quan
+        FROM students
+    `;
 
-router.put("/students/:id", (req, res) => {
-    const { id } = req.params;
-    const { name, student_code, gender, room_id } = req.body;
-    const sql = "UPDATE students SET name=?, student_code=?, gender=?, room_id=? WHERE id=?";
-    db.query(sql, [name, student_code, gender, room_id, id], (err, result) => {
-        if (err) {
-            res.status(500).json(err);
-        } else {
-            res.json({ message: "Updated" });
-        }
-    });
-});
-
-router.delete("/students/:id", (req, res) => {
-    const { id } = req.params;
-    const sql = "DELETE FROM students WHERE id=?";
-    db.query(sql, [id], (err, result) => {
-        if (err) {
-            res.status(500).json(err);
-        } else {
-            res.json({ message: "Deleted" });
-        }
-    });
-});
-
-// --- QUẢN LÝ PHÒNG ---
-router.get("/rooms", (req, res) => {
-    db.query("SELECT * FROM rooms", (err, result) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).json(err);
-        }
-        return res.json(result);
-    });
-});
-
-router.put("/rooms/:id", (req, res) => {
-    const { id } = req.params;
-    const { ma_phong, ten_phong, ma_khu, loai_phong, so_nguoi_hien_tai, so_nguoi_toi_da } = req.body;
-    const sql = "UPDATE rooms SET ma_phong=?, ten_phong=?, ma_khu=?, loai_phong=?, so_nguoi_hien_tai=?, so_nguoi_toi_da=? WHERE id=?";
-    db.query(sql, [ma_phong, ten_phong, ma_khu, loai_phong, so_nguoi_hien_tai, so_nguoi_toi_da, id], (err, result) => {
-        if (err) return res.status(500).json(err);
-        res.json({ message: "Sửa thành công" });
-    });
-});
-router.delete("/rooms/:id", (req, res) => {
-    const { id } = req.params;
-    db.query("DELETE FROM rooms WHERE id=?", [id], (err, result) => {
-        if (err) return res.status(500).json(err);
-        res.json({ message: "Xóa thành công" });
-    });
-});
-
-// --- QUẢN LÝ HÓA ĐƠN (BILLS) ---
-
-// 📋 LẤY DANH SÁCH HÓA ĐƠN (Đã sửa lỗi hiển thị chữ Mã Phòng)
-router.get("/bills", (req, res) => {
-    // Sửa lỗi: Thêm dấu phẩy sau bills.* và sửa tên bảng room -> rooms
-    const sql = "SELECT bills.*, rooms.ma_phong FROM bills JOIN rooms ON bills.room_id = rooms.id";
     db.query(sql, (err, result) => {
+
         if (err) {
-            console.log("GET BILLS ERROR:", err);
             return res.status(500).json(err);
         }
+
         res.json(result);
     });
 });
 
-// 💾 THÊM HÓA ĐƠN MỚI
-router.post("/bills", (req, res) => {
-    const { ma_phong, month, electric, water } = req.body;
+// TÌM KIẾM SINH VIÊN
 
-    // 1. Tìm id phòng từ mã phòng (chữ) người dùng nhập
-    const findRoom = "SELECT id FROM rooms WHERE ma_phong = ?";
-    db.query(findRoom, [ma_phong], (err, result) => {
-        if (err) return res.status(500).json(err);
+router.get("/students/search/:code", (req, res) => {
+
+    console.log("SEARCH STUDENT RUNNING");
+
+    const { code } = req.params;
+
+    const sql = `
+        SELECT * FROM students
+        WHERE TRIM(LOWER(student_code)) = TRIM(LOWER(?))
+        OR TRIM(LOWER(name)) LIKE TRIM(LOWER(?))
+    `;
+
+    db.query(
+        sql,
+        [
+            code,
+            `%${code}%`
+        ],
+
+        (err, result) => {
+
+            if (err) {
+
+                console.log(err);
+
+                return res.status(500).json(err);
+            }
+
+            if (result.length === 0) {
+
+                return res.status(404).json({
+                    message: "Không tìm thấy sinh viên"
+                });
+            }
+
+            res.json(result[0]);
+        }
+    );
+});
+
+// THÊM SINH VIÊN
+
+router.post("/students", (req, res) => {
+
+    const {
+        student_code,
+        name,
+        cmnd,
+        sdt,
+        ngay_sinh,
+        que_quan
+    } = req.body;
+
+    const sql = `
+        INSERT INTO students
+        (
+            student_code,
+            name,
+            cmnd,
+            sdt,
+            ngay_sinh,
+            que_quan
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+    `;
+
+    db.query(
+        sql,
+        [
+            student_code,
+            name,
+            cmnd,
+            sdt,
+            ngay_sinh,
+            que_quan
+        ],
+
+        (err, result) => {
+
+            if (err) {
+
+                console.log(err);
+
+                return res.status(500).json(err);
+            }
+
+            res.json({
+                success: true,
+                message: "Thêm thành công"
+            });
+        }
+    );
+});
+
+// SỬA SINH VIÊN
+
+router.put("/students/:id", (req, res) => {
+
+    const { id } = req.params;
+
+    const {
+        student_code,
+        name,
+        cmnd,
+        sdt,
+        ngay_sinh,
+        que_quan
+    } = req.body;
+
+    const sql = `
+        UPDATE students
+        SET
+            student_code = ?,
+            name = ?,
+            cmnd = ?,
+            sdt = ?,
+            ngay_sinh = ?,
+            que_quan = ?
+        WHERE id = ?
+    `;
+
+    db.query(
+        sql,
+        [
+            student_code,
+            name,
+            cmnd,
+            sdt,
+            ngay_sinh,
+            que_quan,
+            id
+        ],
+
+        (err, result) => {
+
+            if (err) {
+
+                console.log(err);
+
+                return res.status(500).json(err);
+            }
+
+            res.json({
+                message: "Sửa thành công"
+            });
+        }
+    );
+});
+
+// XÓA SINH VIÊN
+
+router.delete("/students/:id", (req, res) => {
+
+    const { id } = req.params;
+
+    const sql =
+        "DELETE FROM students WHERE id = ?";
+
+    db.query(sql, [id], (err, result) => {
+
+        if (err) {
+
+            console.log(err);
+
+            return res.status(500).json(err);
+        }
+
+        res.json({
+            message: "Xóa thành công"
+        });
+    });
+});
+
+// ================= ROOMS =================
+
+// HIỂN THỊ PHÒNG
+
+router.get("/rooms", (req, res) => {
+
+    db.query(
+        "SELECT * FROM rooms",
+
+        (err, result) => {
+
+            if (err) {
+
+                console.log(err);
+
+                return res.status(500).json(err);
+            }
+
+            res.json(result);
+        }
+    );
+});
+
+// TÌM KIẾM PHÒNG
+
+router.get("/rooms/search/:code", (req, res) => {
+
+    const { code } = req.params;
+
+    const sql =
+        "SELECT * FROM rooms WHERE ma_phong = ?";
+
+    db.query(sql, [code], (err, result) => {
+
+        if (err) {
+
+            console.log(err);
+
+            return res.status(500).json(err);
+        }
 
         if (result.length === 0) {
-            return res.status(400).json({ message: "Phòng không tồn tại" });
+
+            return res.status(404).json({
+                message: "Không tìm thấy phòng"
+            });
+        }
+
+        res.json(result[0]);
+    });
+});
+
+// THÊM PHÒNG
+
+router.post("/rooms", (req, res) => {
+
+    const {
+        ma_phong,
+        ten_phong,
+        ma_khu,
+        loai_phong,
+        so_nguoi_hien_tai,
+        so_nguoi_toi_da
+    } = req.body;
+
+    const sql = `
+        INSERT INTO rooms
+        (
+            ma_phong,
+            ten_phong,
+            ma_khu,
+            loai_phong,
+            so_nguoi_hien_tai,
+            so_nguoi_toi_da
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+    `;
+
+    db.query(
+        sql,
+        [
+            ma_phong,
+            ten_phong,
+            ma_khu,
+            loai_phong,
+            so_nguoi_hien_tai,
+            so_nguoi_toi_da
+        ],
+
+        (err, result) => {
+
+            if (err) {
+
+                console.log(err);
+
+                return res.status(500).json(err);
+            }
+
+            res.json({
+                message: "Thêm phòng thành công"
+            });
+        }
+    );
+});
+
+// ================= BILLS =================
+
+// HIỂN THỊ HÓA ĐƠN
+
+router.get("/bills", (req, res) => {
+
+    const sql = `
+        SELECT
+            bills.id,
+            rooms.ma_phong,
+            bills.month,
+            bills.electric,
+            bills.water
+        FROM bills
+        JOIN rooms
+        ON bills.room_id = rooms.id
+    `;
+
+    db.query(sql, (err, result) => {
+
+        if (err) {
+
+            console.log(err);
+
+            return res.status(500).json(err);
+        }
+
+        res.json(result);
+    });
+});
+
+// THÊM HÓA ĐƠN
+
+router.post("/bills", (req, res) => {
+
+    const {
+        ma_phong,
+        month,
+        electric,
+        water
+    } = req.body;
+
+    const findRoom =
+        "SELECT id FROM rooms WHERE ma_phong = ?";
+
+    db.query(findRoom, [ma_phong], (err, result) => {
+
+        if (err) {
+
+            console.log(err);
+
+            return res.status(500).json(err);
+        }
+
+        if (result.length === 0) {
+
+            return res.status(400).json({
+                message: "Phòng không tồn tại"
+            });
         }
 
         const room_id = result[0].id;
 
-        // 2. Lưu vào bảng bills sử dụng room_id vừa tìm được
-        const insertSql = "INSERT INTO bills (room_id, month, electric, water) VALUES (?, ?, ?, ?)";
-        db.query(insertSql, [room_id, month, electric, water], (err2, result2) => {
-            if (err2) {
-                console.log("INSERT BILL ERROR:", err2);
-                return res.status(500).json(err2);
+        const sql = `
+            INSERT INTO bills
+            (
+                room_id,
+                month,
+                electric,
+                water
+            )
+            VALUES (?, ?, ?, ?)
+        `;
+
+        db.query(
+            sql,
+            [
+                room_id,
+                month,
+                electric,
+                water
+            ],
+
+            (err2, result2) => {
+
+                if (err2) {
+
+                    console.log(err2);
+
+                    return res.status(500).json(err2);
+                }
+
+                res.json({
+                    success: true,
+                    message: "Thêm hóa đơn thành công"
+                });
             }
-            res.json({ message: "Thêm hóa đơn thành công", success: true });
-        });
+        );
     });
 });
 
